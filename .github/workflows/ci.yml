@@ -233,7 +233,7 @@ jobs:
           echo "report=${COVERAGE_REPORT_FILE}" >> $GITHUB_OUTPUT
 
       - name: Upload coverage results (to Codecov.io)
-        if: ${{ ! matrix.no_coverage }}
+        if: ${{ ! matrix.no_coverage && github.repository == 'mozilla/sccache' }}
         uses: codecov/codecov-action@v5
         with:
           files: ${{ steps.coverage.outputs.report }}
