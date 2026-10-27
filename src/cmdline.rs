@@ -123,6 +123,9 @@ fn get_clap_command() -> clap::Command {
             "\n",
             "    COS:       ",
             cfg!(feature = "cos"),
+            "\n",
+            "    BazelRemote: ",
+            cfg!(feature = "bazel-remote"),
             "\n"
         ))
         .args(&[

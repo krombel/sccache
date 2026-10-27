@@ -128,7 +128,7 @@ export SCCACHE_MULTILEVEL_CHAIN="disk,redis,s3"
 
 **Format**: Comma-separated list of cache backend names
 **Order**: Left-to-right is fast-to-slow (L0, L1, L2, ...)
-**Valid names**: `disk`, `redis`, `memcached`, `s3`, `gcs`, `azure`, `gha`, `webdav`, `oss`, `cos`
+**Valid names**: `disk`, `redis`, `memcached`, `s3`, `gcs`, `azure`, `gha`, `webdav`, `oss`, `cos`, `bazel-remote`
 
 ### Write Error Policy Configuration
 

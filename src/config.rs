@@ -468,6 +468,19 @@ pub struct WebdavCacheConfig {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct BazelRemoteCacheConfig {
+    pub endpoint: String,
+    /// Optional REAPI instance name used as a URL path prefix.
+    #[serde(default)]
+    pub instance: Option<String>,
+    pub username: Option<String>,
+    pub password: Option<String>,
+    #[serde(default)]
+    pub rw_mode: CacheModeConfig,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct S3CacheConfig {
     pub bucket: String,
     pub region: Option<String>,
@@ -524,7 +537,8 @@ remote_caches![
     "azure",
     "webdav",
     "oss",
-    "cos"
+    "cos",
+    "bazel-remote",
 ];
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -538,6 +552,7 @@ pub enum CacheType {
     Webdav(WebdavCacheConfig),
     OSS(OSSCacheConfig),
     COS(COSCacheConfig),
+    BazelRemote(BazelRemoteCacheConfig),
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -553,6 +568,7 @@ pub struct CacheConfigs {
     pub webdav: Option<WebdavCacheConfig>,
     pub oss: Option<OSSCacheConfig>,
     pub cos: Option<COSCacheConfig>,
+    pub bazel_remote: Option<BazelRemoteCacheConfig>,
     /// Multi-level cache configuration
     pub multilevel: Option<MultiLevelConfig>,
 }
@@ -572,6 +588,7 @@ impl CacheConfigs {
             webdav,
             oss,
             cos,
+            bazel_remote,
             multilevel: _,
         } = self;
 
@@ -584,7 +601,8 @@ impl CacheConfigs {
             .or_else(|| azure.map(CacheType::Azure))
             .or_else(|| webdav.map(CacheType::Webdav))
             .or_else(|| oss.map(CacheType::OSS))
-            .or_else(|| cos.map(CacheType::COS));
+            .or_else(|| cos.map(CacheType::COS))
+            .or_else(|| bazel_remote.map(CacheType::BazelRemote));
 
         let fallback = disk.unwrap_or_default();
 
@@ -614,6 +632,8 @@ impl CacheConfigs {
             "oss" => Ok(self.oss.clone().map(CacheType::OSS)),
             #[cfg(feature = "cos")]
             "cos" => Ok(self.cos.clone().map(CacheType::COS)),
+            #[cfg(feature = "bazel-remote")]
+            "bazel-remote" => Ok(self.bazel_remote.clone().map(CacheType::BazelRemote)),
             _ if REMOTE_CACHES.contains(&(lower.as_str(), false)) => {
                 bail!("Cache level '{name}' requires the '{lower}' feature")
             }
@@ -634,6 +654,7 @@ impl CacheConfigs {
             webdav,
             oss,
             cos,
+            bazel_remote,
             multilevel,
         } = other;
 
@@ -666,6 +687,9 @@ impl CacheConfigs {
         }
         if cos.is_some() {
             self.cos = cos;
+        }
+        if bazel_remote.is_some() {
+            self.bazel_remote = bazel_remote;
         }
 
         if multilevel.is_some() {
@@ -1151,6 +1175,26 @@ fn config_from_env() -> Result<EnvConfig> {
         None
     };
 
+    // ======= bazel-remote =======
+    let bazel_remote = if let Some(endpoint) = string_from_env_var("SCCACHE_BAZEL_REMOTE_ENDPOINT")
+    {
+        let instance = string_from_env_var("SCCACHE_BAZEL_REMOTE_INSTANCE");
+        let username = string_from_env_var("SCCACHE_BAZEL_REMOTE_USERNAME");
+        let password = string_from_env_var("SCCACHE_BAZEL_REMOTE_PASSWORD");
+        let rw_mode = cache_mode_from_env_var("SCCACHE_BAZEL_REMOTE_RW_MODE")
+            .unwrap_or(CacheModeConfig::ReadWrite);
+
+        Some(BazelRemoteCacheConfig {
+            endpoint,
+            instance,
+            username,
+            password,
+            rw_mode,
+        })
+    } else {
+        None
+    };
+
     // ======= OSS =======
     let oss = if let Some(bucket) = string_from_env_var("SCCACHE_OSS_BUCKET") {
         let endpoint = string_from_env_var("SCCACHE_OSS_ENDPOINT");
@@ -1260,6 +1304,7 @@ fn config_from_env() -> Result<EnvConfig> {
         webdav,
         oss,
         cos,
+        bazel_remote,
         multilevel,
     };
 
@@ -2511,6 +2556,47 @@ fn test_s3_sse_kms_from_env() {
 
 #[test]
 #[serial(config_from_env)]
+#[cfg(feature = "bazel-remote")]
+fn test_bazel_remote_from_env() {
+    unsafe {
+        env::set_var("SCCACHE_BAZEL_REMOTE_ENDPOINT", "http://127.0.0.1:8080");
+        env::set_var("SCCACHE_BAZEL_REMOTE_INSTANCE", "main");
+        env::set_var("SCCACHE_BAZEL_REMOTE_USERNAME", "user");
+        env::set_var("SCCACHE_BAZEL_REMOTE_PASSWORD", "pass");
+        env::set_var("SCCACHE_BAZEL_REMOTE_RW_MODE", "READ_ONLY");
+    }
+
+    let cfg = config_from_env();
+
+    unsafe {
+        env::remove_var("SCCACHE_BAZEL_REMOTE_ENDPOINT");
+        env::remove_var("SCCACHE_BAZEL_REMOTE_INSTANCE");
+        env::remove_var("SCCACHE_BAZEL_REMOTE_USERNAME");
+        env::remove_var("SCCACHE_BAZEL_REMOTE_PASSWORD");
+        env::remove_var("SCCACHE_BAZEL_REMOTE_RW_MODE");
+    }
+
+    let env_cfg = cfg.unwrap();
+    match env_cfg.cache.bazel_remote {
+        Some(BazelRemoteCacheConfig {
+            endpoint,
+            instance,
+            username,
+            password,
+            rw_mode,
+        }) => {
+            assert_eq!(endpoint, "http://127.0.0.1:8080");
+            assert_eq!(instance.as_deref(), Some("main"));
+            assert_eq!(username.as_deref(), Some("user"));
+            assert_eq!(password.as_deref(), Some("pass"));
+            assert_eq!(rw_mode, CacheModeConfig::ReadOnly);
+        }
+        None => unreachable!(),
+    }
+}
+
+#[test]
+#[serial(config_from_env)]
 #[cfg(feature = "webdav")]
 fn test_webdav_disable_create_dir_from_env() {
     unsafe {
@@ -2933,6 +3019,13 @@ rw_mode = "READ_ONLY"
 bucket = "name"
 endpoint = "cos.na-siliconvalley.myqcloud.com"
 key_prefix = "cosprefix"
+
+[cache.bazel_remote]
+endpoint = "http://127.0.0.1:8080"
+instance = "main"
+username = "bazeluser"
+password = "bazelpass"
+rw_mode = "READ_ONLY"
 "#;
 
     let file_config: FileConfig = toml::from_str(CONFIG_STR).expect("Is valid toml.");
@@ -3021,6 +3114,13 @@ key_prefix = "cosprefix"
                     endpoint: Some("cos.na-siliconvalley.myqcloud.com".to_owned()),
                     key_prefix: "cosprefix".into(),
                     rw_mode: CacheModeConfig::ReadWrite,
+                }),
+                bazel_remote: Some(BazelRemoteCacheConfig {
+                    endpoint: "http://127.0.0.1:8080".to_string(),
+                    instance: Some("main".to_string()),
+                    username: Some("bazeluser".to_string()),
+                    password: Some("bazelpass".to_string()),
+                    rw_mode: CacheModeConfig::ReadOnly,
                 }),
                 multilevel: None,
             },

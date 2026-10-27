@@ -14,12 +14,19 @@ fn main() {
                 feature = "cos"
             )
         },
-        // All remote cache backends
-        any_cache_remote: {
+        // Remote backends that use OpenDAL's Operator / RemoteStorage wrapper.
+        any_opendal_remote: {
             any(
                 any_http_remote,
                 feature = "memcached",
                 feature = "redis"
+            )
+        },
+        // All remote cache backends (OpenDAL-backed plus direct HTTP).
+        any_cache_remote: {
+            any(
+                any_opendal_remote,
+                feature = "bazel-remote"
             )
         },
         // Distributed compilation features

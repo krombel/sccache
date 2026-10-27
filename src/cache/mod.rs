@@ -14,6 +14,8 @@
 
 #[cfg(feature = "azure")]
 pub mod azure;
+#[cfg(feature = "bazel-remote")]
+pub mod bazel_remote;
 #[allow(clippy::module_inception)]
 pub mod cache;
 pub mod cache_io;

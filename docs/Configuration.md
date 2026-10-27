@@ -156,6 +156,13 @@ token = "token123"
 # Skip PROPFIND/MKCOL calls before writes, for servers that don't support them
 disable_create_dir = false
 
+[cache.bazel_remote]
+endpoint = "http://127.0.0.1:8080"
+# Optional REAPI instance name used as a URL path prefix.
+# instance = "main"
+# username = "alice"
+# password = "secret12"
+
 [cache.oss]
 bucket = "name"
 endpoint = "oss-us-east-1.aliyuncs.com"
@@ -215,7 +222,7 @@ Multi-level caching enables hierarchical cache storage with automatic backfill. 
 
 * `SCCACHE_MULTILEVEL_CHAIN` comma-separated list of cache backend names to use in hierarchy (e.g., `disk,redis,s3`)
   - Order matters: left-to-right is fast-to-slow (L0, L1, L2, ...)
-  - Valid names: `disk`, `redis`, `memcached`, `s3`, `gcs`, `azure`, `gha`, `webdav`, `oss`, `cos`
+  - Valid names: `disk`, `redis`, `memcached`, `s3`, `gcs`, `azure`, `gha`, `webdav`, `oss`, `cos`, `bazel-remote`
   - Each level must be separately configured with its own environment variables
   - If not set, sccache uses single-level mode (legacy behavior)
 * `SCCACHE_MULTILEVEL_WRITE_ERROR_POLICY` controls error handling on cache writes (default: `l0`)
@@ -330,6 +337,16 @@ When using Entra ID, credentials are read from the ambient `AZURE_*` environment
 * `SCCACHE_WEBDAV_TOKEN` a token to authenticate with webdav service (optional) - may be used instead of login & password.
 * `SCCACHE_WEBDAV_RW_MODE` allows to use webdav backend in read-only mode if set to `READ_ONLY`
 * `SCCACHE_WEBDAV_DISABLE_CREATE_DIR` skip PROPFIND/MKCOL calls before writes, for servers that don't support them (optional).
+
+#### bazel-remote
+
+See [BazelRemote.md](BazelRemote.md).
+
+* `SCCACHE_BAZEL_REMOTE_ENDPOINT` HTTP base URL of the bazel-remote server, such as `http://127.0.0.1:8080`.
+* `SCCACHE_BAZEL_REMOTE_INSTANCE` optional REAPI instance name used as a URL path prefix.
+* `SCCACHE_BAZEL_REMOTE_USERNAME` username for HTTP basic authentication (optional).
+* `SCCACHE_BAZEL_REMOTE_PASSWORD` password for HTTP basic authentication (optional).
+* `SCCACHE_BAZEL_REMOTE_RW_MODE` `READ_ONLY` or `READ_WRITE` (default).
 
 #### OSS
 

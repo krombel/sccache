@@ -15,6 +15,8 @@
 use super::cache_io::*;
 #[cfg(feature = "azure")]
 use crate::cache::azure::AzureBlobCache;
+#[cfg(feature = "bazel-remote")]
+use crate::cache::bazel_remote::BazelRemoteCache;
 #[cfg(feature = "cos")]
 use crate::cache::cos::COSCache;
 use crate::cache::disk::DiskCache;
@@ -31,7 +33,7 @@ use crate::cache::oss::OSSCache;
 use crate::cache::redis::RedisCache;
 #[cfg(feature = "s3")]
 use crate::cache::s3::S3Cache;
-#[cfg(any_cache_remote)]
+#[cfg(any_opendal_remote)]
 use crate::cache::utils::normalize_key;
 #[cfg(feature = "webdav")]
 use crate::cache::webdav::WebdavCache;
@@ -187,7 +189,7 @@ pub trait Storage: Send + Sync {
 }
 
 /// Wrapper for opendal::Operator that adds basedirs support
-#[cfg(any_cache_remote)]
+#[cfg(any_opendal_remote)]
 pub struct RemoteStorage {
     operator: opendal::Operator,
     basedirs: Vec<Vec<u8>>,
@@ -195,7 +197,7 @@ pub struct RemoteStorage {
     skip_cache_check: bool,
 }
 
-#[cfg(any_cache_remote)]
+#[cfg(any_opendal_remote)]
 impl RemoteStorage {
     pub fn new(operator: opendal::Operator, basedirs: Vec<Vec<u8>>, rw_mode: CacheMode) -> Self {
         Self {
@@ -212,7 +214,7 @@ impl RemoteStorage {
     }
 }
 
-#[cfg(any_cache_remote)]
+#[cfg(any_opendal_remote)]
 fn decode_remote_cache_read(
     result: opendal::Result<opendal::Buffer>,
 ) -> Result<(Cache, Option<Bytes>)> {
@@ -228,7 +230,7 @@ fn decode_remote_cache_read(
 }
 
 /// Implement storage for operator.
-#[cfg(any_cache_remote)]
+#[cfg(any_opendal_remote)]
 #[async_trait]
 impl Storage for RemoteStorage {
     async fn get(&self, key: &str) -> Result<Cache> {
@@ -564,6 +566,21 @@ pub fn build_single_cache(
                 .with_skip_cache_check(skip_cache_check);
             Ok(Arc::new(storage))
         }
+        #[cfg(feature = "bazel-remote")]
+        CacheType::BazelRemote(c) => {
+            debug!("Init bazel-remote cache with endpoint {}", c.endpoint);
+            let storage = BazelRemoteCache::build(
+                &c.endpoint,
+                c.instance.as_deref(),
+                c.username.as_deref(),
+                c.password.as_deref(),
+                c.rw_mode.into(),
+                basedirs.to_vec(),
+            )
+            .map_err(|err| anyhow!("create bazel-remote cache failed: {err:?}"))?
+            .with_skip_cache_check(skip_cache_check);
+            Ok(Arc::new(storage))
+        }
         #[cfg(feature = "oss")]
         CacheType::OSS(c) => {
             debug!(
@@ -643,7 +660,7 @@ mod test {
     use crate::config::CacheModeConfig;
     use fs_err as fs;
 
-    #[cfg(any_cache_remote)]
+    #[cfg(any_opendal_remote)]
     mod remote_storage {
         use super::*;
         use opendal::{Error, ErrorKind};

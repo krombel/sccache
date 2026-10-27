@@ -58,8 +58,9 @@ Also keep in mind:
 - MSRV is the `rust-version` in `Cargo.toml` (kept in sync with `README.md` and
   the CI toolchain). Do not use newer language or std features.
 - Storage backends are cargo features (`s3`, `gcs`, `azure`, `redis`,
-  `memcached`, `gha`, `webdav`, `oss`, `cos`, `dist-client`). Code must still
-  build with `--no-default-features --features <one>`; CI checks each one.
+  `memcached`, `gha`, `webdav`, `oss`, `cos`, `bazel-remote`, `dist-client`).
+  Code must still build with `--no-default-features --features <one>`; CI
+  checks each one.
 - New dependencies need a reason in the PR description. `Cargo.lock` is
   committed and CI builds `--locked`.
 - Some tests need real compilers (gcc, clang, msvc, nvcc) or a running server;

@@ -182,6 +182,7 @@ all = [
   "webdav",
   "oss",
   "cos",
+  "bazel-remote",
 ]
 azure = [
   "opendal/services-azblob",
@@ -189,6 +190,7 @@ azure = [
   "opendal-http-transport-reqwest",
   "reqwest",
 ]
+bazel-remote = ["reqwest", "sha2"]
 cos = [
   "opendal/services-cos",
   "opendal-layer-logging",

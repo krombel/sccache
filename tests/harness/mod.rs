@@ -181,6 +181,7 @@ pub fn sccache_client_cfg(
             webdav: None,
             oss: None,
             cos: None,
+            bazel_remote: None,
             multilevel: None,
         },
         dist: sccache::config::DistConfig {
